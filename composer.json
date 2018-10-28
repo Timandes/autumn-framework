@@ -9,8 +9,8 @@
         {"name": "Timandes White", "email": "timandes@php.net"}
     ],
     "require": {
-        "php": "^7.0",
-        "pecl/swoole": "^1.7.7",
+        "php": ">=7.0",
+        "ext-swoole": ">=1.7.7",
         "doctrine/annotations": "^1.4",
         "psr/log": "^1.0"
     },
