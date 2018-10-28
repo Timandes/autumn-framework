@@ -1,0 +1,23 @@
+{
+    "name": "autumn/autumn-framework",
+    "type": "library",
+    "description": "Autumn Framework",
+    "keywords": ["autumn", "framework", "spring", "di", "swoole", "swoole", "rest", "micro", "service"],
+    "homepage": "https://github.com/Timandes/autumn-framework",
+    "license": "Apache-2.0",
+    "authors": [
+        {"name": "Timandes White", "email": "timandes@php.net"}
+    ],
+    "require": {
+        "php": "^7.0",
+        "pecl/swoole": "^1.7.7",
+        "doctrine/annotations": "^1.4",
+        "psr/log": "^1.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^5.7"
+    },
+    "autoload": {
+        "psr-4": { "Autumn\\": "src" }
+    }
+}
