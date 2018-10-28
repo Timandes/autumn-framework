@@ -2,7 +2,7 @@
     "name": "autumn/autumn-framework",
     "type": "library",
     "description": "Autumn Framework",
-    "keywords": ["autumn", "framework", "spring", "di", "swoole", "swoole", "rest", "micro", "service"],
+    "keywords": ["autumn", "framework", "spring", "di", "swoole", "rest", "micro", "service"],
     "homepage": "https://github.com/Timandes/autumn-framework",
     "license": "Apache-2.0",
     "authors": [
