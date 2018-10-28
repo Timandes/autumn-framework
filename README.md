@@ -7,7 +7,7 @@ Autumn Framework是基于PECL/Swoole的微服务框架。
 
 1.Import:
 
-1. 导入：
+1.导入：
 
 ```
 composer require autumn/autumn-framework
