@@ -2,16 +2,22 @@
 Autumn Framework is a micro service framework based on PECL/Swoole.
 Autumn Framework是基于PECL/Swoole的微服务框架。
 
+
 ## Getting Started
 
-Import:
-导入：
+1.Import:
+
+1. 导入：
+
 ```
 composer require autumn/autumn-framework
 ```
 
-Add your own namespace to composer.json (eg: Market):
-在composer.json中加入自定义的项目名称空间（如：Market）：
+
+2.Add your own namespace to composer.json (eg: Market):
+
+2.在composer.json中加入自定义的项目名称空间（如：Market）：
+
 ```json
 // ...
     "autoload": {
@@ -22,8 +28,11 @@ Add your own namespace to composer.json (eg: Market):
 // ...
 ```
 
-Create index.php:
-编写index.php：
+
+3.Create index.php:
+
+3.编写index.php：
+
 ```php
 <?php
 
@@ -32,8 +41,11 @@ require __DIR__ . '/vendor/autoload.php';
 exit(Autumn\Boot\AutumnApplication::run($argc, $argv));
 ```
 
-Create model class (Plain Ordinary PHP Object):
-创建模型类（简单的常规PHP类）：
+
+4.Create model class (Plain Ordinary PHP Object):
+
+4.创建模型类（简单的常规PHP类）：
+
 ```php
 <?php
 
@@ -45,8 +57,11 @@ class Car
 }
 ```
 
-Create controller class (POPO):
-创建控制器类（POPO）：
+
+5.Create controller class (POPO):
+
+5.创建控制器类（POPO）：
+
 ```php
 <?php
 
@@ -76,14 +91,25 @@ class CarController
     }
 }
 ```
+
 Respond 10 cars when requesting "GET /cars".
+
 接收"GET /cars"并响应10辆车的信息。
 
 
-Enjoy:
-启动微服务：
+6.Launch service:
+
+6.启动微服务：
+
 ```
 php index.php
+```
+
+
+7.Enjoy:
+
+```
+curl -i http://localhost:3028/cars
 ```
 
 
