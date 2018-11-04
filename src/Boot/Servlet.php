@@ -1,6 +1,6 @@
 <?php
 
-namespace Autumn\Boot;
+namespace Autumn\Framework\Boot;
 
 class Servlet
 {

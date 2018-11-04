@@ -1,8 +1,8 @@
 <?php
 
-namespace autumn\log;
+namespace Autumn\Framework\Log;
 
-use \Psr\Log\AbstractLogger;
+use Psr\Log\AbstractLogger;
 
 class NullLogger extends AbstractLogger
 {

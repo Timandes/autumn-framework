@@ -1,6 +1,6 @@
 <?php
 
-namespace Autumn\Context;
+namespace Autumn\Framework\Context;
 
 use \RuntimeExcecption;
 

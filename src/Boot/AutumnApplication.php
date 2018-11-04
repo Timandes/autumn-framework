@@ -1,13 +1,13 @@
 <?php
 
-namespace Autumn\Boot;
+namespace Autumn\Framework\Boot;
 
-use \Autumn\Context\ApplicationContext;
-use \Autumn\Log\DefaultLogger;
-use \swoole_http_server;
-use \Exception;
 use \Doctrine\Common\Annotations\AnnotationRegistry;
-use \Autumn\Boot\Servlet;
+use \Exception;
+use \swoole_http_server;
+use \Autumn\Framework\Boot\Servlet;
+use \Autumn\Framework\Context\ApplicationContext;
+use \Autumn\Framework\Log\DefaultLogger;
 
 class AutumnApplication
 {
@@ -19,14 +19,24 @@ class AutumnApplication
     public static function run(...$args)
     {
         AnnotationRegistry::registerLoader(function($class) {
-            $namespace = 'Autumn\Annotation';
-            if (strpos($class, $namespace) !== 0) {
+            $frameworkNsPrefix = 'Autumn\Framework\\';
+            $annotationNamespaces = ['Annotation', 'Context\Annotation'];
+            $nsSufix = null;
+            foreach ($annotationNamespaces as $nss) {
+                $namespace = $frameworkNsPrefix . $nss;
+                if (strpos($class, $namespace) === 0) {
+                    $nsSufix = $nss;
+                    break;
+                }
+            }
+            if (!$nsSufix) {
                 return false;
             }
 
             $rncn = str_replace($namespace . '\\', '', $class);
+            $nsSuffixPath = str_replace('\\', DIRECTORY_SEPARATOR, $nss);
             $file = str_replace('\\', DIRECTORY_SEPARATOR, $rncn) . '.php';
-            $path = realpath(__DIR__ . '/../../') . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'Annotation' . DIRECTORY_SEPARATOR . $file;
+            $path = realpath(__DIR__ . '/../../') . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . $nsSuffixPath . DIRECTORY_SEPARATOR . $file;
             if (!is_file($path)) {
                 return false;
             }
@@ -56,7 +66,6 @@ class AutumnApplication
         $servlet = new Servlet($httpServer);
 
         $applicationContext = new ApplicationContext(...$args);
-        $applicationContext->setLogger($this->logger);
         $applicationContext->setServer($servlet);
         $applicationContext->load();
 

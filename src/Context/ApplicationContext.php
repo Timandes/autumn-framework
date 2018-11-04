@@ -1,12 +1,12 @@
 <?php
 
-namespace Autumn\Context;
+namespace Autumn\Framework\Context;
 
 use \RuntimeException;
-use \Autumn\Log\NullLogger;
 use \ReflectionClass;
 use \Doctrine\Common\Annotations\AnnotationReader;
-use \Autumn\Annotation\RestController;
+use \Autumn\Framework\Annotation\RestController;
+use \Autumn\Framework\Boot\Logging\LoggerFactory;
 
 class ApplicationContext
 {
@@ -24,15 +24,25 @@ class ApplicationContext
 
     private $server = null;
 
+    private $beans = [];
+
+    private $primaryBeans = [];
+
+    private $annotationResolvers = [];
+
     public function __construct(...$args)
     {
         $this->parseArgs($args);
-        $this->logger = new NullLogger();
+        $this->logger = LoggerFactory::create(ApplicationContext::class);
+        $this->initializeAnnotationResolvers();
     }
 
-    public function setLogger($logger)
+    private function initializeAnnotationResolvers()
     {
-        $this->logger = $logger;
+        $this->annotationResolvers = [
+            new Annotation\Resolver\RestControllerAnnotationResolver(),
+            new Annotation\Resolver\ConfigurationAnnotationResolver(),
+        ];
     }
 
     public function setServer($server)
@@ -65,17 +75,36 @@ class ApplicationContext
     {
         $this->logger->info("Loading {$path} ...");
 
+        if (!file_exists($path)) {
+            throw new RuntimeException("Cannot find file {$path}");
+        }
         require_once $path;
+
         $fqcn = '\\' . $namespace;
+        if (!$this->targetExists($fqcn, false)) {
+            throw new RuntimeException("Class {$fqcn} cannot be loaded from file {$path}");
+        }
 
         $annotationReader = new AnnotationReader();
 
         $rc = new ReflectionClass($fqcn);
-        $restController = $annotationReader->getClassAnnotation($rc, RestController::class);
-        if ($restController) {
-            $controller = $rc->newInstance();
-            $restController->load($this->server, $annotationReader, $rc, $controller);
+        foreach ($this->annotationResolvers as $resolver) {
+            $beans = $resolver->resolve($annotationReader, $rc, $this);
+            foreach ($beans as $name => $bean) {
+                $type = get_class($bean);
+                $type = $this->findRootClass($type);
+
+                $this->primaryBeans[$type] = $bean;
+                $this->beans[$name] = $bean;
+                $this->logger->info("Bean {$name} loaded");
+            }
         }
+    }
+
+    private function targetExists($fqcn)
+    {
+        return (interface_exists($fqcn)
+                || class_exists($fqcn));
     }
 
     private function getSubDirectories($dir)
@@ -121,15 +150,46 @@ class ApplicationContext
     {
         $composerLoader = new ComposerLoader($this->rootDir);
         $composerMeta = $composerLoader->load();
-        
+
         foreach ($composerMeta['autoload']['psr-4'] as $namespace => $path) {
-            if (preg_match('/^src\/$/', $path)) {
-                $this->srcNamespace = rtrim($namespace, '\\');
+            if (preg_match('/^src\/?$/', $path)) {
+                $this->srcNamespace = trim($namespace, '\\');
             }
         }
 
         if (!$this->srcNamespace) {
             throw new RuntimeException("Fail to find namespace of directory src/");
         }
+    }
+
+    public function getBean(string $name)
+    {
+        if (!isset($this->beans[$name])) {
+            return null;
+        }
+
+        return $this->beans[$name];
+    }
+
+    protected function getBeanByType(string $type)
+    {
+        if (!isset($this->primaryBeans[$type])) {
+            return null;
+        }
+
+        return $this->primaryBeans[$type];
+    }
+
+    private function findRootClass(string $name)
+    {
+        while ($parent = get_parent_class($name)) {
+            $name = $parent;
+        }
+        return $name;
+    }
+
+    public function getServer()
+    {
+        return $this->server;
     }
 }

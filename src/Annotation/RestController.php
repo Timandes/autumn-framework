@@ -1,6 +1,6 @@
 <?php
 
-namespace Autumn\Annotation;
+namespace Autumn\Framework\Annotation;
 
 use \ReflectionClass;
 use \Doctrine\Common\Annotations\AnnotationReader;
