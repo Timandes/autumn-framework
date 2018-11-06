@@ -15,7 +15,7 @@ use \Autumn\Framework\Log\DefaultLogger;
  */
 class LoggerFactory
 {
-    public static function create($class)
+    public static function getLog($class)
     {
         return new DefaultLogger($class);
     }

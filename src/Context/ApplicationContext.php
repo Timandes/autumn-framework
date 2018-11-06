@@ -5,7 +5,7 @@ namespace Autumn\Framework\Context;
 use \RuntimeException;
 use \ReflectionClass;
 use \Doctrine\Common\Annotations\AnnotationReader;
-use \Autumn\Framework\Annotation\RestController;
+use \Autumn\Framework\Context\Annotation\Autowired;
 use \Autumn\Framework\Boot\Logging\LoggerFactory;
 
 class ApplicationContext
@@ -26,6 +26,7 @@ class ApplicationContext
 
     private $beans = [];
 
+    /** @var array type (with \\ prefix) => bean */
     private $primaryBeans = [];
 
     private $annotationResolvers = [];
@@ -33,7 +34,7 @@ class ApplicationContext
     public function __construct(...$args)
     {
         $this->parseArgs($args);
-        $this->logger = LoggerFactory::create(ApplicationContext::class);
+        $this->logger = LoggerFactory::getLog(self::class);
         $this->initializeAnnotationResolvers();
     }
 
@@ -54,24 +55,27 @@ class ApplicationContext
     {
         $this->rootDir = $this->getRootDir();
         $this->findSrcNamespace();
-        $this->loadAnnotations($this->srcNamespace, $this->rootDir . DIRECTORY_SEPARATOR . 'src');
+
+        $annotationReader = new AnnotationReader();
+        $this->loadAnnotations($annotationReader, $this->srcNamespace, $this->rootDir . DIRECTORY_SEPARATOR . 'src');
+        $this->autowire($annotationReader);
     }
 
-    public function loadAnnotations($namespace, $dir)
+    public function loadAnnotations(AnnotationReader $ar, $namespace, $dir)
     {
         foreach ($this->getSubDirectories($dir) as $path) {
             $name = basename($path, '.php');
             $ns = $namespace . '\\' . $name;
 
             if (is_dir($path)) {
-                $this->loadAnnotations($ns, $path);
+                $this->loadAnnotations($ar, $ns, $path);
             } else {
-                $this->loadAnnotationsFromFile($ns, $path);
+                $this->loadAnnotationsFromFile($ar, $ns, $path);
             }
         }
     }
 
-    private function loadAnnotationsFromFile($namespace, $path)
+    private function loadAnnotationsFromFile(AnnotationReader $annotationReader, $namespace, $path)
     {
         $this->logger->info("Loading {$path} ...");
 
@@ -85,18 +89,37 @@ class ApplicationContext
             throw new RuntimeException("Class {$fqcn} cannot be loaded from file {$path}");
         }
 
-        $annotationReader = new AnnotationReader();
-
         $rc = new ReflectionClass($fqcn);
         foreach ($this->annotationResolvers as $resolver) {
             $beans = $resolver->resolve($annotationReader, $rc, $this);
             foreach ($beans as $name => $bean) {
                 $type = get_class($bean);
-                $type = $this->findRootClass($type);
 
-                $this->primaryBeans[$type] = $bean;
+                $rootClasses = $this->findRootClasses($type);
+                foreach ($rootClasses as $beanType) {
+                    $beanType = '\\' . ltrim($beanType, '\\');
+                    $this->primaryBeans[$beanType] = $bean;
+                }
                 $this->beans[$name] = $bean;
-                $this->logger->info("Bean {$name} loaded");
+
+                $withTypes = implode(', ', $rootClasses);
+                $this->logger->info("Bean {$name}({$withTypes}) loaded");
+            }
+        }
+    }
+
+    private function autowire(AnnotationReader $ar)
+    {
+        foreach ($this->beans as $bean) {
+            $rc = new ReflectionClass($bean);
+            $properties = $rc->getProperties();
+            foreach ($properties as $prop) {
+                $annotation = $ar->getPropertyAnnotation($prop, Autowired::class);
+                if (!$annotation) {
+                    continue;
+                }
+    
+                $annotation->load($this, $ar, $prop, $bean);
             }
         }
     }
@@ -171,8 +194,22 @@ class ApplicationContext
         return $this->beans[$name];
     }
 
-    protected function getBeanByType(string $type)
+    public function getBeanByType(string $type)
     {
+        $rootClasses = $this->findRootClasses($type);
+        foreach ($rootClasses as $beanType) {
+            $bean = $this->getBeanByExactType($beanType);
+            if ($bean) {
+                return $bean;
+            }
+        }
+
+        return null;
+    }
+
+    private function getBeanByExactType(string $type)
+    {
+        $type = '\\' . ltrim($type, '\\');
         if (!isset($this->primaryBeans[$type])) {
             return null;
         }
@@ -180,12 +217,19 @@ class ApplicationContext
         return $this->primaryBeans[$type];
     }
 
-    private function findRootClass(string $name)
+    private function findRootClasses(string $name) : array
     {
-        while ($parent = get_parent_class($name)) {
-            $name = $parent;
+        $interfaces = class_implements($name);
+        if ($interfaces) {
+            return array_values($interfaces);
         }
-        return $name;
+
+        $parents = class_parents($name);
+        if (!$parents) {
+            return [$name];
+        }
+
+        return array_pop($parents);
     }
 
     public function getServer()

@@ -28,7 +28,7 @@ class RestControllerAnnotationResolver implements AnnotationResolver
         }
         
         $controller = $rc->newInstance();
-        $restController->load($ctx->getServer(), $ar, $rc, $controller);
+        $restController->load($ctx, $ar, $rc, $controller);
 
         $name = "controller" . spl_object_hash($controller);
         return [$name => $controller];
