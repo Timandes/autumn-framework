@@ -14,8 +14,6 @@ class RestController
 {
     public function load(ApplicationContext $ctx, AnnotationReader $ar, ReflectionClass $rc, $controller)
     {
-        $server = $ctx->getServer();
-
         $methods = $rc->getMethods();
         foreach ($methods as $method) {
             $requestMappingAnnotation = $ar->getMethodAnnotation($method, RequestMapping::class);
@@ -23,7 +21,7 @@ class RestController
                 continue;
             }
 
-            $requestMappingAnnotation->load($server, $ar, $method, $controller);
+            $requestMappingAnnotation->load($ctx, $ar, $method, $controller);
         }
     }
 }

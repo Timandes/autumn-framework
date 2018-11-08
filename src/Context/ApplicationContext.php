@@ -58,10 +58,22 @@ class ApplicationContext
 
         $annotationReader = new AnnotationReader();
         $this->loadAnnotations($annotationReader, $this->srcNamespace, $this->rootDir . DIRECTORY_SEPARATOR . 'src');
+        $this->initializeMessageConvertersAsBean();
         $this->autowire($annotationReader);
     }
 
-    public function loadAnnotations(AnnotationReader $ar, $namespace, $dir)
+    private function initializeMessageConvertersAsBean()
+    {
+        $messageConverters = [];
+        if (class_exists("\MintWare\JOM\ObjectMapper")) {
+            $messageConverters[] = new \Autumn\Framework\Http\Converter\Json\MintWareJsonMessageConverter();
+        } else {
+            $messageConverters[] = new \Autumn\Framework\Http\Converter\Json\PhpJsonMessageConverter();
+        }
+        $this->setBean('messageConverters', $messageConverters);
+    }
+
+    private function loadAnnotations(AnnotationReader $ar, $namespace, $dir)
     {
         foreach ($this->getSubDirectories($dir) as $path) {
             $name = basename($path, '.php');
@@ -93,24 +105,37 @@ class ApplicationContext
         foreach ($this->annotationResolvers as $resolver) {
             $beans = $resolver->resolve($annotationReader, $rc, $this);
             foreach ($beans as $name => $bean) {
-                $type = get_class($bean);
-
-                $rootClasses = $this->findRootClasses($type);
-                foreach ($rootClasses as $beanType) {
-                    $beanType = '\\' . ltrim($beanType, '\\');
-                    $this->primaryBeans[$beanType] = $bean;
-                }
-                $this->beans[$name] = $bean;
-
-                $withTypes = implode(', ', $rootClasses);
-                $this->logger->info("Bean {$name}({$withTypes}) loaded");
+                $this->setBean($name, $bean);
             }
         }
+    }
+
+    private function setBean($name, $bean)
+    {
+        if (is_object($bean)) {
+            $type = get_class($bean);
+
+            $rootClasses = $this->findRootClasses($type);
+            foreach ($rootClasses as $beanType) {
+                $beanType = '\\' . ltrim($beanType, '\\');
+                $this->primaryBeans[$beanType] = $bean;
+            }
+
+            $withTypes = '(' . implode(', ', $rootClasses) . ')';
+        } else {
+            $withTypes = '';
+        }
+        $this->beans[$name] = $bean;
+
+        $this->logger->info("Bean {$name}{$withTypes} loaded");
     }
 
     private function autowire(AnnotationReader $ar)
     {
         foreach ($this->beans as $bean) {
+            if (!is_object($bean)) {
+                continue;
+            }
             $rc = new ReflectionClass($bean);
             $properties = $rc->getProperties();
             foreach ($properties as $prop) {

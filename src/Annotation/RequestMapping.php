@@ -6,6 +6,8 @@ use \ReflectionMethod;
 use \ReflectionParameter;
 use \Doctrine\Common\Annotations\AnnotationReader;
 
+use \Autumn\Framework\Context\ApplicationContext;
+
 /**
  * @Annotation
  */
@@ -15,24 +17,27 @@ class RequestMapping
 
     public $method = 'GET';
 
-    public function load($server, AnnotationReader $ar, ReflectionMethod $rm, $controller)
+    public function load(ApplicationContext $ctx, AnnotationReader $ar, ReflectionMethod $rm, $controller)
     {
+        $server = $ctx->getServer();
+
         $me = $this;
-        $server->addRequestMapping($this->value, $this->method, function($request, $response) use ($me, $rm, $controller) {
-            return $me->requestHandler($request, $response, $controller, $rm);
+        $server->addRequestMapping($this->value, $this->method, function($request, $response) use ($me, $ctx, $rm, $controller) {
+            return $me->requestHandler($ctx, $request, $response, $controller, $rm);
         });
     }
 
-    public function requestHandler($request, $response, $controller, ReflectionMethod $rm)
+    public function requestHandler(ApplicationContext $ctx, $request, $response, $controller, ReflectionMethod $rm)
     {
-        $model = $this->invokeControllerMethod($request, $controller, $rm);
-        if (is_scalar($model))
-            $responseString = $model;
-        else
-            $responseString = json_encode($model);
+        $message = $this->invokeControllerMethod($request, $controller, $rm);
+
+        $messageConverters = $ctx->getBean('messageConverters');
+        foreach ($messageConverters as $converter) {
+            $message = $converter->write($message);
+        }
 
         $response->header['content-type'] = 'application/json';
-        $response->end($responseString);
+        $response->end($message);
     }
 
     private function invokeControllerMethod($request, $controller, $rm)
