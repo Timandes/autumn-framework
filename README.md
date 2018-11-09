@@ -127,7 +127,7 @@ curl -i http://localhost:3028/cars
 
 
 
-## Define beans and autowire (since 0.1.0)
+## Define a bean and inject it into a property (since 0.1.0)
 
 1.Create configuration class and define beans:
 
@@ -155,7 +155,7 @@ class DaTrieConfiguration
 
 
 
-2.Autowire to an property:
+2.Inject the bean to a property:
 
 2.注入到类属性上：
 
