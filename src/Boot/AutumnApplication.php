@@ -20,7 +20,7 @@ class AutumnApplication
     {
         AnnotationRegistry::registerLoader(function($class) {
             $frameworkNsPrefix = 'Autumn\Framework\\';
-            $annotationNamespaces = ['Annotation', 'Context\Annotation'];
+            $annotationNamespaces = ['Annotation', 'Context\Annotation', 'Web\Bind\Annotation'];
             $nsSufix = null;
             foreach ($annotationNamespaces as $nss) {
                 $namespace = $frameworkNsPrefix . $nss;

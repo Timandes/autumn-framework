@@ -7,6 +7,7 @@ use \ReflectionParameter;
 use \Doctrine\Common\Annotations\AnnotationReader;
 
 use \Autumn\Framework\Context\ApplicationContext;
+use \Autumn\Framework\Web\Bind\Annotation\RequestBody;
 
 /**
  * @Annotation
@@ -22,30 +23,51 @@ class RequestMapping
         $server = $ctx->getServer();
 
         $me = $this;
-        $server->addRequestMapping($this->value, $this->method, function($request, $response) use ($me, $ctx, $rm, $controller) {
-            return $me->requestHandler($ctx, $request, $response, $controller, $rm);
+        $server->addRequestMapping($this->value, $this->method, function($request, $response) use ($me, $ctx, $ar, $rm, $controller) {
+            return $me->requestHandler($ctx, $ar, $request, $response, $controller, $rm);
         });
     }
 
-    public function requestHandler(ApplicationContext $ctx, $request, $response, $controller, ReflectionMethod $rm)
+    public function requestHandler(ApplicationContext $ctx, AnnotationReader $ar, $request, $response, $controller, ReflectionMethod $rm)
     {
-        $message = $this->invokeControllerMethod($request, $controller, $rm);
+        $requestBodyAnnotation = $ar->getMethodAnnotation($rm, RequestBody::class);
+        if ($requestBodyAnnotation) {
+            $requestBodyParameterName = $requestBodyAnnotation->value;
+        } else {
+            $requestBodyParameterName = '';
+        }
+        $message = $this->invokeControllerMethod($request, $controller, $rm, $requestBodyParameterName);
+
+        $message = $this->convertMessage($ctx, $message);
+
+        $response->header['content-type'] = 'application/json';
+        $response->end($message);
+    }
+
+    private function convertMessage(ApplicationContext $ctx, $message)
+    {
+        if (!$message) {
+            return $message;
+        }
 
         $messageConverters = $ctx->getBean('messageConverters');
         foreach ($messageConverters as $converter) {
             $message = $converter->write($message);
         }
 
-        $response->header['content-type'] = 'application/json';
-        $response->end($message);
+        return $message;
     }
 
-    private function invokeControllerMethod($request, $controller, $rm)
+    private function invokeControllerMethod($request, $controller, ReflectionMethod $rm, string $requestBodyParameterName)
     {
         $parameters = $rm->getParameters();
         $arguments = [];
         foreach ($parameters as $param) {
-            $arguments[] = $this->getParamValue($request, $param);
+            if ($param->getName() == $requestBodyParameterName) {
+                $arguments[] = $this->getRequestBody($request);
+            } else {
+                $arguments[] = $this->getParamValue($request, $param);
+            }
         }
         return $rm->invokeArgs($controller, $arguments);
     }
@@ -63,5 +85,10 @@ class RequestMapping
             default:
                 return null;
         }
+    }
+
+    private function getRequestBody($request) : string
+    {
+        return $request->rawContent();
     }
 }
