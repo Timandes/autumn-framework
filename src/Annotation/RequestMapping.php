@@ -46,7 +46,7 @@ class RequestMapping
 
     private function convertMessage(ApplicationContext $ctx, $message)
     {
-        if (!$message) {
+        if (is_null($message)) {
             return $message;
         }
 
