@@ -59,4 +59,12 @@ class Servlet
         $context['request_time'] = number_format(microtime(true) - $context['start_time'], 3);
         $this->logger->info($message, $context);
     }
+
+    /**
+     * Get identity of current coroutine or thread
+     */
+    public function getSubProcessId()
+    {
+        return \Swoole\Coroutine::getuid();
+    }
 }
