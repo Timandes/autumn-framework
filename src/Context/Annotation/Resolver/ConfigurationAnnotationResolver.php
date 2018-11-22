@@ -28,6 +28,6 @@ class ConfigurationAnnotationResolver implements AnnotationResolver
         }
         
         $configuration = $rc->newInstance();
-        return $annotation->load($ar, $rc, $configuration);
+        return $annotation->load($ctx, $ar, $rc, $configuration);
     }
 }

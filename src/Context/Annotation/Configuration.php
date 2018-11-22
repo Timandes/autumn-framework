@@ -11,21 +11,35 @@ namespace Autumn\Framework\Context\Annotation;
 use \ReflectionClass;
 use \ReflectionMethod;
 use \Doctrine\Common\Annotations\AnnotationReader;
+use \bultonFr\DependencyTree\DependencyTree;
 
 use \Autumn\Framework\Context\Annotation\Bean;
+use \Autumn\Framework\Context\ApplicationContext;
+use \Autumn\Framework\Stereotype\Proxy\ComponentProxy;
 
 /**
  * @Annotation
  */
 class Configuration
 {
-    public function load(AnnotationReader $ar
+    private $dependencyTree = null;
+
+    /** $ */
+    private $beanMap = [];
+
+    public function __construct()
+    {
+        $this->dependencyTree = new DependencyTree();
+    }
+
+    public function load(ApplicationContext $ctx
+            , AnnotationReader $ar
             , ReflectionClass $rc, $configuration)
     {
         $beans = [];
         $methods = $rc->getMethods();
         foreach ($methods as $method) {
-            $pair = $this->loadMethodBean($ar, $method, $configuration);
+            $pair = $this->loadMethodBean($ctx, $ar, $method, $configuration);
             if (!$pair) {
                 continue;
             }
@@ -35,7 +49,8 @@ class Configuration
         return $beans;
     }
 
-    private function loadMethodBean(AnnotationReader $ar
+    private function loadMethodBean(ApplicationContext $ctx
+            , AnnotationReader $ar
             , ReflectionMethod $rm, $configuration)
     {
         $annotation = $ar->getMethodAnnotation($rm, Bean::class);
@@ -45,6 +60,7 @@ class Configuration
 
         $name = $rm->getName();
         $bean = $rm->invoke($configuration);
+        $bean = new ComponentProxy($ctx, $ar, $bean);
         return [$name, $bean];
     }
 }
