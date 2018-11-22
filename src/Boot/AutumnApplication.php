@@ -50,7 +50,7 @@ class AutumnApplication
             $application->setLogger($logger);
             return $application->start(...$args);
         } catch (Exception $e) {
-            $logger->error($e->getMessage());
+            $logger->error($e->getMessage() . PHP_EOL . $e->getTraceAsString());
             return self::EXIT_FAILURE;
         }
     }
