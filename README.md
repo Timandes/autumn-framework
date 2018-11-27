@@ -53,8 +53,6 @@ exit(Autumn\Framework\Boot\AutumnApplication::run($argc, $argv));
 4.创建模型类（简单的常规PHP类）：
 
 ```php
-<?php
-
 namespace Market;
 
 class Car
@@ -74,8 +72,6 @@ Notice: we use [mintware-de/json-object-mapper](https://packagist.org/packages/m
 5.创建控制器类（POPO）：
 
 ```php
-<?php
-
 namespace Market;
 
 use \Autumn\Framework\Annotation\RestController;
@@ -176,6 +172,181 @@ class SearchInController
 
 
 
+## Use `@Autowired` annotation on methods (since 0.2.0):
+
+```php
+use \Autumn\Framework\Annotation\RestController;
+use \Autumn\Framework\Annotation\RequestMapping;
+use \Autumn\Framework\Context\Annotation\Autowired;
+
+/**
+ * @RestController
+ */
+class SearchInController
+{
+    private $daTrieService;
+    
+    /**
+     * @Autowired
+     */
+    public function setDaTrieService(DaTrieService $daTrieService)
+    {
+        $this->daTrieService = $daTrieService;
+    }
+}
+```
+
+
+
+## Retrieve request body (since 0.2.0)
+
+Add `@RequestBody` annotation to action method:
+
+在动作方法上为某个参数定义`@RequestBody`注解：
+
+```php
+namespace Market;
+
+use \Autumn\Framework\Annotation\RestController;
+use \Autumn\Framework\Annotation\RequestMapping;
+use \Autumn\Framework\Web\Bind\Annotation\RequestBody;
+
+/**
+ * @RestController
+ */
+class CarController
+{
+    /**
+     * @RequestMapping(value="/comments", method="POST")
+     * @RequestBody(value="carId")
+     */
+    public function create(string $carId)
+    {
+        // ...
+    }
+}
+```
+
+Notice: `string` is the only supported type by `@RequestBody` annotation.
+
+注意：目前仅支持`string`类型的变量。
+
+
+
+## Do something after all beans are loaded (since 0.2.0):
+
+Create derivative of interface `ContextRefreshedEventApplicationListener`:
+
+创建接口`ContextRefreshedEventApplicationListener`的派生类：
+
+```php
+namespace Market;
+
+use \Autumn\Framework\Context\Listener\ContextRefreshedEventApplicationListener;
+use \Autumn\Framework\Context\Event\ContextRefreshedEvent;
+
+class LoadCommentsApplicationListener implements ContextRefreshedEventApplicationListener
+{
+    public function onApplicationEvent(ContextRefreshedEvent $event)
+    {
+        // Load comments
+    }
+}
+```
+
+
+
+## Connect to MySQL server in coroutine (since 0.2.0):
+
+1.Define bean of `MySqlOperations`:
+
+1.定义`MySqlOperations`接口的Bean：
+
+```php
+use \Autumn\Framework\Context\Annotation\Configuration;
+use \Autumn\Framework\Context\Annotation\Bean;
+use \Autumn\Framework\Swoole\Coroutine\MySql\MySqlTemplate;
+
+/**
+ * Main Configuration
+ * 
+ * @Configuration
+ */
+class MainConfiguration
+{
+    /** @Bean */
+    public function mySqlOperations()
+    {
+        return new MySqlTemplate([
+            'host' => 'localhost',
+            'port' => 3306,
+            'user' => 'root',
+            'password' => '',
+            'database' => 'test',
+        ]);
+    }
+}
+```
+
+
+
+2.Inject to a class and use it:
+
+2.注入类并使用：
+
+```php
+namespace Market;
+
+use \Autumn\Framework\Swoole\Coroutine\MySql\MySqlOperations;
+
+class CarService
+{
+    /** @Autowired(value=MySqlOperations::class) */
+    private $mySqlOperations;
+    
+    const LIST_ALL_SQL = "SELECT * FROM `cars` WHERE `id`>?";
+    
+    public function listCars()
+    {
+        $generator = $this->mySqlOperations->queryAll(self::LIST_ALL_SQL, function($row) {
+            $car = new Car();
+            $car->id = $row['id'];
+            return $car;
+        }, 'id');
+        
+        $cars = [];
+        foreach ($generator as $car) {
+            // ...
+            $cars[] = $car;
+        }      
+        
+        return $cars;
+    }
+}
+```
+
+
+
+Notice: We strongly suggest to use this feature in actions of controllers.
+
+注意：这项特性目前仅建议使用在控制器的动作方法中。
+
+
+
+## Additional changes
+
+### 0.2.0
+
+- Interface `FactoryBean`.
+- Access log.
+- Add placeholder `{xxx}` support to log messages.
+- 日志中支持`{xxx}`占位符；
+- Show trace info when exceptions were caught.
+- 捕捉到异常时展示堆栈调用；
+- `DbalTemplate` (require package `Doctrine/DBAL`).
+
+
+
 ## Extra Dependencies
 
 - [PECL/Swoole](https://pecl.php.net/package/swoole)
@@ -188,4 +359,3 @@ class SearchInController
 - [Double-Array Trie Server](https://github.com/Timandes/datrie-server)
 - [Spring](https://spring.io/)
 - Spring in Action
-
