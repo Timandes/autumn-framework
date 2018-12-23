@@ -64,12 +64,7 @@ class Autowired
     {
         $bean = $ctx->getBeanByType($type);
         if (!$bean) {
-            $factoryBean = $ctx->getFactoryBeanByType($type);
-            if (!$factoryBean) {
-                throw new RuntimeException("Cannot find bean with type {$type}");
-            }
-
-            $bean = $factoryBean->getObject();
+            throw new RuntimeException("Cannot find bean with type {$type}");
         }
 
         return $bean;
