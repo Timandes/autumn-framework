@@ -1,14 +1,29 @@
 <?php
+/**
+ * Autumn Framework
+ * 
+ * @author Timandes White <timandes@php.net>
+ * @license Apache-2.0
+ */
 
 namespace Autumn\Framework\Context;
 
 use \RuntimeException;
 use \ReflectionClass;
+use \ReflectionMethod;
 use \Doctrine\Common\Annotations\AnnotationReader;
+
 use \Autumn\Framework\Context\Annotation\Autowired;
 use \Autumn\Framework\Boot\Logging\LoggerFactory;
+use \Autumn\Framework\Beans\FactoryBean;
+use \Autumn\Framework\Context\Annotation\Configuration;
+use \Autumn\Framework\Context\Annotation\Bean;
+use \Autumn\Framework\Stereotype\Proxy\ComponentProxy;
+use \Autumn\Framework\Context\ApplicationContextAware;
+use \Autumn\Framework\Context\ApplicationListener;
+use \Autumn\Framework\Context\Support\GenericApplicationContext;
 
-class ApplicationContext
+class ApplicationContext extends GenericApplicationContext
 {
     private $applicationClassName = '';
 
@@ -24,15 +39,11 @@ class ApplicationContext
 
     private $server = null;
 
-    private $beans = [];
-
-    /** @var array type (with \\ prefix) => bean */
-    private $primaryBeans = [];
-
     private $annotationResolvers = [];
 
     public function __construct(...$args)
     {
+        parent::__construct();
         $this->parseArgs($args);
         $this->logger = LoggerFactory::getLog(self::class);
         $this->initializeAnnotationResolvers();
@@ -42,7 +53,7 @@ class ApplicationContext
     {
         $this->annotationResolvers = [
             new Annotation\Resolver\RestControllerAnnotationResolver(),
-            new Annotation\Resolver\ConfigurationAnnotationResolver(),
+            //new Annotation\Resolver\ConfigurationAnnotationResolver(),
         ];
     }
 
@@ -59,7 +70,8 @@ class ApplicationContext
         $annotationReader = new AnnotationReader();
         $this->loadAnnotations($annotationReader, $this->srcNamespace, $this->rootDir . DIRECTORY_SEPARATOR . 'src');
         $this->initializeMessageConvertersAsBean();
-        $this->autowire($annotationReader);
+
+        $this->refresh();
     }
 
     private function initializeMessageConvertersAsBean()
@@ -70,7 +82,7 @@ class ApplicationContext
         } else {
             $messageConverters[] = new \Autumn\Framework\Http\Converter\Json\PhpJsonMessageConverter();
         }
-        $this->setBean('messageConverters', $messageConverters);
+        $this->registerBeanDefinition('messageConverters', ['messageConverters', $messageConverters]);
     }
 
     private function loadAnnotations(AnnotationReader $ar, $namespace, $dir)
@@ -89,7 +101,7 @@ class ApplicationContext
 
     private function loadAnnotationsFromFile(AnnotationReader $annotationReader, $namespace, $path)
     {
-        $this->logger->info("Loading {$path} ...");
+        $this->logger->info("Scanning file {$path} ...");
 
         if (!file_exists($path)) {
             throw new RuntimeException("Cannot find file {$path}");
@@ -105,48 +117,52 @@ class ApplicationContext
         foreach ($this->annotationResolvers as $resolver) {
             $beans = $resolver->resolve($annotationReader, $rc, $this);
             foreach ($beans as $name => $bean) {
-                $this->setBean($name, $bean);
+                $this->registerBeanDefinition($name, [$name, $bean]);
             }
+        }
+        $this->resolveConfigurationClass($rc, $annotationReader);
+
+        // ApplicationListener
+        if ($rc->isSubclassOf(ApplicationListener::class)) {
+            $bean = $rc->newInstance();
+            $name = 'applicationListener' . spl_object_hash($bean);
+            $this->registerBeanDefinition($name, [$name, $bean]);
         }
     }
 
-    private function setBean($name, $bean)
+    private function resolveConfigurationClass(ReflectionClass $rc, AnnotationReader $annotationReader)
     {
-        if (is_object($bean)) {
-            $type = get_class($bean);
-
-            $rootClasses = $this->findRootClasses($type);
-            foreach ($rootClasses as $beanType) {
-                $beanType = '\\' . ltrim($beanType, '\\');
-                $this->primaryBeans[$beanType] = $bean;
-            }
-
-            $withTypes = '(' . implode(', ', $rootClasses) . ')';
-        } else {
-            $withTypes = '';
+        $annotation = $annotationReader->getClassAnnotation($rc, Configuration::class);
+        if (!$annotation) {
+            return;
         }
-        $this->beans[$name] = $bean;
-
-        $this->logger->info("Bean {$name}{$withTypes} loaded");
+        
+        $configuration = $rc->newInstance();
+        $this->loadConfigurationClass($rc, $annotationReader, $configuration);
     }
 
-    private function autowire(AnnotationReader $ar)
+    private function loadConfigurationClass(ReflectionClass $rc, AnnotationReader $annotationReader, $configuration)
     {
-        foreach ($this->beans as $bean) {
-            if (!is_object($bean)) {
-                continue;
-            }
-            $rc = new ReflectionClass($bean);
-            $properties = $rc->getProperties();
-            foreach ($properties as $prop) {
-                $annotation = $ar->getPropertyAnnotation($prop, Autowired::class);
-                if (!$annotation) {
-                    continue;
-                }
-    
-                $annotation->load($this, $ar, $prop, $bean);
-            }
+        $methods = $rc->getMethods();
+        foreach ($methods as $method) {
+            $this->loadMethodBean($annotationReader, $method, $configuration);
         }
+    }
+
+    private function loadMethodBean(AnnotationReader $annotationReader, ReflectionMethod $method, $configuration)
+    {
+        $annotation = $annotationReader->getMethodAnnotation($method, Bean::class);
+        if (!$annotation) {
+            return;
+        }
+
+        $name = $method->getName();
+        $bean = $method->invoke($configuration);
+        if ($bean instanceof ApplicationContextAware) {
+            $bean->setApplicationContext($this);
+        }
+
+        $this->registerBeanDefinition($name, [$name, $bean]);
     }
 
     private function targetExists($fqcn)
@@ -208,53 +224,6 @@ class ApplicationContext
         if (!$this->srcNamespace) {
             throw new RuntimeException("Fail to find namespace of directory src/");
         }
-    }
-
-    public function getBean(string $name)
-    {
-        if (!isset($this->beans[$name])) {
-            return null;
-        }
-
-        return $this->beans[$name];
-    }
-
-    public function getBeanByType(string $type)
-    {
-        $rootClasses = $this->findRootClasses($type);
-        foreach ($rootClasses as $beanType) {
-            $bean = $this->getBeanByExactType($beanType);
-            if ($bean) {
-                return $bean;
-            }
-        }
-
-        return null;
-    }
-
-    private function getBeanByExactType(string $type)
-    {
-        $type = '\\' . ltrim($type, '\\');
-        if (!isset($this->primaryBeans[$type])) {
-            return null;
-        }
-
-        return $this->primaryBeans[$type];
-    }
-
-    private function findRootClasses(string $name) : array
-    {
-        $interfaces = class_implements($name);
-        if ($interfaces) {
-            return array_values($interfaces);
-        }
-
-        $parents = class_parents($name);
-        if (!$parents) {
-            return [$name];
-        }
-
-        return array_pop($parents);
     }
 
     public function getServer()

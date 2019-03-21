@@ -20,7 +20,7 @@ class AutumnApplication
     {
         AnnotationRegistry::registerLoader(function($class) {
             $frameworkNsPrefix = 'Autumn\Framework\\';
-            $annotationNamespaces = ['Annotation', 'Context\Annotation'];
+            $annotationNamespaces = ['Annotation', 'Context\Annotation', 'Web\Bind\Annotation'];
             $nsSufix = null;
             foreach ($annotationNamespaces as $nss) {
                 $namespace = $frameworkNsPrefix . $nss;
@@ -50,7 +50,7 @@ class AutumnApplication
             $application->setLogger($logger);
             return $application->start(...$args);
         } catch (Exception $e) {
-            $logger->error($e->getMessage());
+            $logger->error($e->getMessage() . PHP_EOL . $e->getTraceAsString());
             return self::EXIT_FAILURE;
         }
     }
