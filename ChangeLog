@@ -1,0 +1,45 @@
+Autumn Framework
+
+v0.2.0
+----
+    Features:
+    * Add @RequestBody annotation.
+    * Add access log support.
+    * Add FactoryBean interface.
+    * Add Doctrine/DBAL template.
+    * Add Swoole Coroutine MySQL template.
+    * Add ApplicationListener interface.
+    * ApplicationListener: Add ContextRefreshedEventApplicationListener interface.
+    * Add ApplicationContextAware interface.
+    * Logger: Add placeholder support.
+    Improvements:
+    * Show traces when exception is caught.
+    * Organize beans by dependency tree.
+    * Logger: Colorize level string.
+
+
+v0.1.1
+----
+    Bugs:
+    * Fix autoload configuration.
+
+
+v0.1.0
+----
+    Incompatible changes:
+    * Update namespace (Autumn => Autumn\Framework).
+    Features:
+    * Add @Autowired annotation.
+    * Add @Bean annotation.
+    * Add @ComponentScan annotation.
+    * Add @Configuration annotation.
+    * Add logger support.
+    * Add AnnotationResolver interface.
+    * Add MessageConverter interface.
+    * MessageConverter: Add MintWareJsonMessageConverter.
+    * MessageConverter: Add PhpJsonMessageConverter.
+
+
+v0.0.1
+----
+    Initial version.
