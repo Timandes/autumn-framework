@@ -8,10 +8,9 @@
 
 ### Long term
 - `@ExceptionHandler` annotation.
-- `CoroutineMysqlTemplate` template class.
 - Template engine.
 
 ### Done
-
 - `@RequestBody` annotation (the tricky one).
 - Request log.
+- `CoroutineMysqlTemplate` template class.
