@@ -9,6 +9,7 @@
 ### Long term
 - `@ExceptionHandler` annotation.
 - Template engine.
+- `@Conditional` annotation.
 
 ### Done
 - `@RequestBody` annotation (the tricky one).
