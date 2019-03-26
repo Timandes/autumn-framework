@@ -1,7 +1,7 @@
 <?php
 /**
  * Autumn Framework
- * 
+ *
  * @author Timandes White <timandes@php.net>
  * @license Apache-2.0
  */
@@ -136,7 +136,7 @@ class ApplicationContext extends GenericApplicationContext
         if (!$annotation) {
             return;
         }
-        
+
         $configuration = $rc->newInstance();
         $this->loadConfigurationClass($rc, $annotationReader, $configuration);
     }
@@ -162,7 +162,9 @@ class ApplicationContext extends GenericApplicationContext
             $bean->setApplicationContext($this);
         }
 
-        $this->registerBeanDefinition($name, [$name, $bean]);
+        if ($bean) {
+            $this->registerBeanDefinition($name, [$name, $bean]);
+        }
     }
 
     private function targetExists($fqcn)
